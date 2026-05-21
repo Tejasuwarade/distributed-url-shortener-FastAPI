@@ -24,6 +24,7 @@ class URLService:
     async def create_short_url(
         self,
         original_url: str,
+        user_id: uuid.UUID | None = None,
         custom_alias: str | None = None,
         expires_at: datetime | None = None,
     ) -> URLResponse:
@@ -37,6 +38,7 @@ class URLService:
                 url = await self.repository.create(
                     original_url=original_url,
                     short_code=short_code,
+                    user_id=user_id,
                     custom_alias=custom_alias,
                     expires_at=expires_at,
                 )

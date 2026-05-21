@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     base_url: str = "http://localhost:8000"
     short_code_length: int = 8
     log_level: str = "INFO"
+    jwt_secret_key: str = "change-me-generate-a-strong-secret"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -42,6 +46,13 @@ class Settings(BaseSettings):
     @classmethod
     def strip_base_url(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def validate_jwt_secret_key(cls, value: str) -> str:
+        if len(value) < 32:
+            raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
+        return value
 
 
 @lru_cache
