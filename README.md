@@ -124,6 +124,33 @@ Health check:
 GET http://localhost:8000/api/v1/health
 ```
 
+## Authentication Quick Start
+
+Create a user:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"strongpassword123","name":"Example User"}'
+```
+
+Login:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"strongpassword123"}'
+```
+
+Use the returned access token:
+
+```bash
+curl http://localhost:8000/api/v1/users/me \
+  -H "Authorization: Bearer ACCESS_TOKEN_HERE"
+```
+
+More detail is in `docs/authentication.md`.
+
 ## Database Migrations
 
 The initial migration is included in `alembic/versions`.
