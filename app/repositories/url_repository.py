@@ -18,10 +18,12 @@ class URLRepository:
         self,
         original_url: str,
         short_code: str,
+        user_id: uuid.UUID | None = None,
         custom_alias: str | None = None,
         expires_at: datetime | None = None,
     ) -> URL:
         url = URL(
+            user_id=user_id,
             original_url=original_url,
             short_code=short_code,
             custom_alias=custom_alias,

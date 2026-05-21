@@ -7,9 +7,10 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.core.redis import close_redis, init_redis
+from app.middleware.auth_context import AuthContextMiddleware
 from app.middleware.exception_handler import register_exception_handlers
 from app.middleware.request_logging import RequestLoggingMiddleware
-from app.routers import health, redirect, urls
+from app.routers import auth, health, redirect, urls, users
 
 logger = get_logger(__name__)
 
@@ -33,9 +34,12 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(AuthContextMiddleware)
     register_exception_handlers(app)
 
     app.include_router(health.router, prefix=settings.api_v1_prefix, tags=["health"])
+    app.include_router(auth.router, prefix=settings.api_v1_prefix, tags=["auth"])
+    app.include_router(users.router, prefix=settings.api_v1_prefix, tags=["users"])
     app.include_router(urls.router, prefix=settings.api_v1_prefix, tags=["urls"])
     app.include_router(redirect.router, tags=["redirect"])
 
