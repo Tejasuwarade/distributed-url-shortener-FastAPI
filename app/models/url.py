@@ -24,6 +24,7 @@ class URL(Base):
         nullable=True,
     )
     original_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    original_url_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     short_code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
     custom_alias: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     clicks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -54,5 +55,6 @@ class URL(Base):
         Index("ix_urls_custom_alias", "custom_alias"),
         Index("ix_urls_lookup_active", "short_code", "is_active", "expires_at"),
         Index("ix_urls_user_created_at", "user_id", "created_at"),
+        Index("ix_urls_user_original_hash_active", "user_id", "original_url_hash", "is_active"),
         Index("ix_urls_expires_at", "expires_at", postgresql_where=text("expires_at IS NOT NULL")),
     )

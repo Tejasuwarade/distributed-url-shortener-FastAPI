@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
@@ -20,17 +20,21 @@ router = APIRouter(prefix="/urls")
 )
 async def create_short_url(
     payload: URLCreateRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> URLResponse:
     service = URLService(session=session, redis=get_redis())
     try:
-        return await service.create_short_url(
+        result = await service.create_short_url(
             original_url=str(payload.original_url),
             user_id=current_user.id,
             custom_alias=payload.custom_alias,
             expires_at=payload.expires_at,
         )
+        if result.is_duplicate:
+            response.status_code = status.HTTP_200_OK
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
