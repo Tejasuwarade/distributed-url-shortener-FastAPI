@@ -9,9 +9,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.repositories.short_code_repository import ShortCodeRepository
 from app.repositories.url_repository import URLRepository
 from app.schemas.url import URLResponse, URLStatsResponse
-from app.utils.short_code import generate_short_code
+from app.utils.base62 import encode_base62
+from app.utils.url_hash import hash_url
 
 
 class URLService:
@@ -19,6 +21,7 @@ class URLService:
 
     def __init__(self, session: AsyncSession, redis: Redis) -> None:
         self.repository = URLRepository(session)
+        self.short_code_repository = ShortCodeRepository(session)
         self.redis = redis
 
     async def create_short_url(
@@ -28,8 +31,15 @@ class URLService:
         custom_alias: str | None = None,
         expires_at: datetime | None = None,
     ) -> URLResponse:
+        original_url_hash = hash_url(original_url)
+
         if custom_alias and await self.repository.code_or_alias_exists(custom_alias):
             raise ValueError("Custom alias is already in use")
+
+        if not custom_alias and expires_at is None and user_id is not None:
+            duplicate = await self.repository.get_active_duplicate(user_id, original_url_hash)
+            if duplicate is not None:
+                return self._to_response(duplicate, is_duplicate=True)
 
         url = None
         for _ in range(10):
@@ -37,6 +47,7 @@ class URLService:
             try:
                 url = await self.repository.create(
                     original_url=original_url,
+                    original_url_hash=original_url_hash,
                     short_code=short_code,
                     user_id=user_id,
                     custom_alias=custom_alias,
@@ -44,6 +55,8 @@ class URLService:
                 )
                 break
             except IntegrityError:
+                if custom_alias:
+                    raise
                 continue
 
         if url is None:
@@ -53,14 +66,7 @@ class URLService:
         if url.custom_alias:
             await self._cache_url(url.id, url.custom_alias, url.original_url, url.expires_at)
 
-        return URLResponse(
-            id=url.id,
-            original_url=url.original_url,
-            short_code=url.short_code,
-            custom_alias=url.custom_alias,
-            short_url=self._build_short_url(url.custom_alias or url.short_code),
-            expires_at=url.expires_at,
-        )
+        return self._to_response(url)
 
     async def resolve_short_code(self, short_code: str) -> str | None:
         cache_key = self._cache_key(short_code)
@@ -104,10 +110,22 @@ class URLService:
 
     async def _generate_unique_short_code(self) -> str:
         for _ in range(10):
-            short_code = generate_short_code(settings.short_code_length)
+            seed = await self.short_code_repository.next_seed()
+            short_code = encode_base62(seed, min_length=settings.short_code_length)
             if not await self.repository.code_or_alias_exists(short_code):
                 return short_code
         raise RuntimeError("Unable to generate unique short code")
+
+    def _to_response(self, url, is_duplicate: bool = False) -> URLResponse:
+        return URLResponse(
+            id=url.id,
+            original_url=url.original_url,
+            short_code=url.short_code,
+            custom_alias=url.custom_alias,
+            short_url=self._build_short_url(url.custom_alias or url.short_code),
+            expires_at=url.expires_at,
+            is_duplicate=is_duplicate,
+        )
 
     @staticmethod
     def _cache_key(short_code: str) -> str:
