@@ -151,6 +151,14 @@ curl http://localhost:8000/api/v1/users/me \
 
 More detail is in `docs/authentication.md`.
 
+## URL Shortening Logic
+
+Short codes are generated from a PostgreSQL sequence and encoded with Base62. Duplicate URL handling, custom aliases, expiration, and collision strategy are explained in:
+
+```text
+docs/url-shortening-logic.md
+```
+
 ## Database Migrations
 
 The initial migration is included in `alembic/versions`.
